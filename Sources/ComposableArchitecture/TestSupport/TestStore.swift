@@ -476,9 +476,9 @@
     ///     expected.
     public func unsafeReceiveOutOfOrder(
       _ expectedAction: Action,
-      _ updateExpectingResult: ((inout LocalState) throws -> Void)? = nil,
       file: StaticString = #file,
-      line: UInt = #line
+      line: UInt = #line,
+      _ update: @escaping (inout LocalState) throws -> Void = { _ in }
     ) {
       guard !self.receivedActions.isEmpty else {
         XCTFail(
@@ -501,19 +501,19 @@
       }
       self.receivedActions.remove(at: self.receivedActions.firstIndex(where: { action, state in action == expectedAction })!)
       
-      var expectedState = self.toLocalState(self.state)
+      var expectedState = self.toLocalState(self.snapshotState)
       do {
-        try expectedStateShouldMatch(
-          expected: &expectedState,
-          actual: self.toLocalState(state),
-          modify: updateExpectingResult,
-          file: file,
-          line: line
-        )
+        try update(&expectedState)
       } catch {
         XCTFail("Threw error: \(error)", file: file, line: line)
       }
-      self.state = state
+      expectedStateShouldMatch(
+        expected: expectedState,
+        actual: self.toLocalState(state),
+        file: file,
+        line: line
+      )
+      snapshotState = state
       if "\(self.file)" == "\(file)" {
         self.line = line
       }
